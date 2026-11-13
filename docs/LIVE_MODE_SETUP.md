@@ -110,3 +110,20 @@ Do not test updates using actual customer data.
 - The prototype is not meant for public production use without stronger account security, auditing, rate limits, and backup/error recovery.
 - Repo is public, so never commit personal customer data, private identifiers, or any secret.
 
+
+## Diagnosing `configured: false` when `check:live` passes
+
+The `npm run check:live` script reads `.env.local` directly, whereas the Next.js application reads the environment of the running server. A previous Next.js process on port 3000, a different working directory, or process-level environment overrides can cause different results.
+
+The dashboard now includes a **localhost-only development diagnostics view** on `/api/session`. It shows names of settings that fail validation; it never includes their values.
+
+1. Pull the newest code: `git pull origin main`.
+2. Close **all** existing Next.js dev terminals with Ctrl+C.
+3. Start this exact repo on a new, unused port: `npm run dev -- -p 3005`.
+4. Open `http://localhost:3005/api/session` (not the older port 3000).
+5. Confirm `diagnosticVersion` is `live-config-v1`.
+6. Look at `configurationIssues` for missing setting names. Do not share the values of secrets.
+
+If `diagnosticVersion` is absent, you are looking at an old dev server or you have not pulled the new code. If `configurationIssues` is empty and `configured` is true, the login page should load. Otherwise inspect only the settings named by the diagnostic, save `.env.local`, and restart the server.
+
+If this still differs from `check:live`, inspect other environment files such as `.env.development.local` and any variables supplied by the launching shell. Do not print or share secret values.
