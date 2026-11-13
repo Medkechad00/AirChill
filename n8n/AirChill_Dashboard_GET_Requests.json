@@ -1,0 +1,120 @@
+{
+  "name": "AirChill Demo \u2014 Dashboard API \u2014 Get Requests",
+  "nodes": [
+    {
+      "id": "a1810865-89ee-54a7-a37e-8037c274dace",
+      "name": "GET \u2014 Requests (header protected)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        220
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "airchill-demo-requests",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "c5172fac-d9be-54e8-947a-d66e2bf833d6"
+    },
+    {
+      "id": "047ce7e0-86a4-57ab-9157-c7d8b06dadd7",
+      "name": "Google Sheets \u2014 Read Requests",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        450,
+        220
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Requests",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "8d8f27cb-0b27-557f-b922-59d4cc550aa7",
+      "name": "Return request list",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Google Sheets emits one item per row. Empty sheet => []\nconst rows = $input.all().map(item => item.json).filter(row =>\n  row && typeof row.session_id === 'string' && row.session_id.trim().length > 0\n);\nreturn [{ json: { items: rows, count: rows.length, source: 'google_sheets' } }];"
+      }
+    },
+    {
+      "id": "5ebe58cf-8b82-575e-85fe-9b3d0d076197",
+      "name": "Return JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        950,
+        220
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "GET \u2014 Requests (header protected)": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets \u2014 Read Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets \u2014 Read Requests": {
+      "main": [
+        [
+          {
+            "node": "Return request list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return request list": {
+      "main": [
+        [
+          {
+            "node": "Return JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

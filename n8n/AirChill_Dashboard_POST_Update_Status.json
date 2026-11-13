@@ -1,0 +1,428 @@
+{
+  "name": "AirChill Demo \u2014 Dashboard API \u2014 Update Status",
+  "nodes": [
+    {
+      "id": "edb9ddee-c7e7-598c-abdf-8476ecd4f657",
+      "name": "POST \u2014 Update Status (header protected)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        260
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "airchill-demo-status",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "9cf4fe0d-ab9b-5700-acc1-59919efd1323"
+    },
+    {
+      "id": "5e8e80f0-e418-54e9-9733-aa52aae3d93c",
+      "name": "Validate status request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        430,
+        260
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Check strictly. Reject unexpected statuses and session identifiers.\nconst b = $input.first().json.body || {};\nconst id = typeof b.session_id === 'string' ? b.session_id.trim() : '';\nconst status = typeof b.status === 'string' ? b.status : '';\nconst permitted = ['Pending staff review','In progress','Completed'];\nconst valid = /^[a-zA-Z0-9_-]{1,128}$/.test(id) && permitted.includes(status);\nreturn [{ json: valid ? { valid: true, session_id: id, status, updated_at: new Date().toISOString() } : { valid: false, error: 'Invalid session_id or status' } }];"
+      }
+    },
+    {
+      "id": "c09ebc2c-f684-5110-82d1-a019dbdeefef",
+      "name": "Valid request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        650,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "540d168c-b720-5ce8-bd48-5bef39a34173",
+              "leftValue": "={{ $json.valid }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fd6d4177-f149-54aa-856a-2ef7b6d4b435",
+      "name": "Google Sheets \u2014 Read For Existence",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        150
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Requests",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "onError": "stopWorkflow",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "95fdb6e0-648d-52fa-aaac-770650275f3c",
+      "name": "Check existing session",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        150
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const requested = $('Validate status request').first().json;\nconst rows = $input.all().map(i => i.json);\nconst exists = rows.some(row => String(row.session_id || '') === requested.session_id);\nreturn [{json:{...requested, exists}}];"
+      }
+    },
+    {
+      "id": "a7ccc068-96af-50a1-b310-afd39f30d13c",
+      "name": "Session exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        150
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "decaba84-4109-538c-8649-269b735c0071",
+              "leftValue": "={{ $json.exists }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "9397b084-2487-5a21-a3fd-04f7020f5db9",
+      "name": "Google Sheets \u2014 Update Existing Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1540,
+        55
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_YOUR_SPREADSHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Requests",
+          "mode": "name"
+        },
+        "options": {},
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.session_id }}",
+            "status": "={{ $json.status }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "session_id"
+          ],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "onError": "stopWorkflow"
+    },
+    {
+      "id": "c871bb83-4d65-553e-84b1-132897f00cb7",
+      "name": "Prepare success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1750,
+        55
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const requested = $('Validate status request').first().json;\nreturn [{json:{ok:true,session_id:requested.session_id,status:requested.status}}];"
+      }
+    },
+    {
+      "id": "41182b91-46a8-5781-878b-57c3a21c1ca8",
+      "name": "Respond \u2014 Success 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1980,
+        55
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "f7e984e2-0222-587a-8fc8-215862eb8c10",
+      "name": "Prepare not found",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1550,
+        270
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{ok:false,error:'Session not found'}}];"
+      }
+    },
+    {
+      "id": "8ce6451e-b694-5dcd-821f-d3324d6d3cc9",
+      "name": "Respond \u2014 Not Found 404",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1750,
+        270
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 404
+        }
+      }
+    },
+    {
+      "id": "c638b3d5-c778-5c1a-9d02-f70c080f6f85",
+      "name": "Prepare invalid response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        440
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{ok:false,error:'Invalid request data'}}];"
+      }
+    },
+    {
+      "id": "e04ad512-3df7-5765-9cb3-14b34d3c016d",
+      "name": "Respond \u2014 Invalid 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1150,
+        440
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 400
+        }
+      }
+    }
+  ],
+  "connections": {
+    "POST \u2014 Update Status (header protected)": {
+      "main": [
+        [
+          {
+            "node": "Validate status request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate status request": {
+      "main": [
+        [
+          {
+            "node": "Valid request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid request?": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets \u2014 Read For Existence",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare invalid response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets \u2014 Read For Existence": {
+      "main": [
+        [
+          {
+            "node": "Check existing session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check existing session": {
+      "main": [
+        [
+          {
+            "node": "Session exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session exists?": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets \u2014 Update Existing Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets \u2014 Update Existing Row": {
+      "main": [
+        [
+          {
+            "node": "Prepare success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare success": {
+      "main": [
+        [
+          {
+            "node": "Respond \u2014 Success 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare not found": {
+      "main": [
+        [
+          {
+            "node": "Respond \u2014 Not Found 404",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare invalid response": {
+      "main": [
+        [
+          {
+            "node": "Respond \u2014 Invalid 400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}
