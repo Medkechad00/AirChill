@@ -12,6 +12,10 @@
 - `n8n/AirChill_Dashboard_GET_Requests.json`: protected read API via Google Sheets
 - `n8n/AirChill_Dashboard_POST_Update_Status.json`: protected update API for existing requests only
 
+## Live Mode — n8n Cloud + Google Sheets
+
+Follow the [Live Mode setup guide](docs/LIVE_MODE_SETUP.md) to import the two backend workflows, configure private Header Auth credentials, and connect the dashboard. After editing your local `.env.local`, run `npm run check:live` to perform a **read-only**, secret-safe connectivity check before making a test status update.
+
 ## A. Preview dashboard with safe demo data FIRST
 
 Node.js 20.9+ required. On a terminal:
