@@ -5,15 +5,38 @@ const cookieName = 'airchill_session';
 function signingSecret(): string { return process.env.SESSION_SECRET ?? ''; }
 function sign(payload: string): string { return createHmac('sha256', signingSecret()).update(payload).digest('hex'); }
 export function liveMode(): boolean { return process.env.DEMO_MODE === 'false'; }
-export function liveConfigured(): boolean {
-  return Boolean(process.env.N8N_GET_REQUESTS_URL && process.env.N8N_UPDATE_STATUS_URL &&
-    process.env.N8N_WEBHOOK_SECRET && process.env.DASHBOARD_PASSWORD && signingSecret() &&
-    signingSecret().length >= 32 && process.env.N8N_WEBHOOK_SECRET.length >= 24 &&
-    process.env.DASHBOARD_PASSWORD.length >= 12 &&
-    !process.env.N8N_GET_REQUESTS_URL.includes('YOUR-SUBDOMAIN') &&
-    !process.env.N8N_UPDATE_STATUS_URL.includes('YOUR-SUBDOMAIN') &&
-    !process.env.N8N_WEBHOOK_SECRET.startsWith('REPLACE_'));
+/**
+ * Returns names of incomplete live-mode settings, never secret values.
+ * Used by a localhost-only diagnostics view during development.
+ */
+export function liveConfigurationIssues(): string[] {
+  const issues: string[] = [];
+  const getUrl = process.env.N8N_GET_REQUESTS_URL || '';
+  const updateUrl = process.env.N8N_UPDATE_STATUS_URL || '';
+  const webhookSecret = process.env.N8N_WEBHOOK_SECRET || '';
+  const password = process.env.DASHBOARD_PASSWORD || '';
+  const sessionSecret = signingSecret();
+
+  if (!getUrl || getUrl.includes('YOUR-SUBDOMAIN'))
+    issues.push('N8N_GET_REQUESTS_URL: missing or placeholder');
+  if (!updateUrl || updateUrl.includes('YOUR-SUBDOMAIN'))
+    issues.push('N8N_UPDATE_STATUS_URL: missing or placeholder');
+  if (!webhookSecret || webhookSecret.startsWith('REPLACE_'))
+    issues.push('N8N_WEBHOOK_SECRET: missing or placeholder');
+  else if (webhookSecret.length < 24)
+    issues.push('N8N_WEBHOOK_SECRET: minimum 24 characters');
+  if (!password)
+    issues.push('DASHBOARD_PASSWORD: missing');
+  else if (password.length < 12)
+    issues.push('DASHBOARD_PASSWORD: minimum 12 characters');
+  if (!sessionSecret)
+    issues.push('SESSION_SECRET: missing');
+  else if (sessionSecret.length < 32)
+    issues.push('SESSION_SECRET: minimum 32 characters');
+
+  return issues;
 }
+export function liveConfigured(): boolean { return liveConfigurationIssues().length === 0; }
 export function validPassword(given:string): boolean {
   const expected = process.env.DASHBOARD_PASSWORD ?? '';
   const a = Buffer.from(given); const b = Buffer.from(expected);
