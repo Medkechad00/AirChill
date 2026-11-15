@@ -3,3 +3,12 @@ node_modules
 .env.local
 .env*.local
 .DS_Store
+
+# Video footage, narration, preview renders and sensitive raw recordings
+video/assets/raw/
+video/assets/voice/
+video/out/
+video/tmp/
+*.mp4
+*.mov
+*.wav
